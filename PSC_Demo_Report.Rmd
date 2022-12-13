@@ -1,0 +1,201 @@
+---
+title: "Posit Connect Demo Report"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(mapproj)
+library(pins)
+
+```
+
+```{css my-content, echo = FALSE}
+
+.navbar-inverse {
+  background-color: #062351;
+  border-color: #062351;
+}
+.navbar-inverse .navbar-brand {
+  color: #ffffff;
+}
+.navbar-inverse .navbar-brand:hover,
+.navbar-inverse .navbar-brand:focus {
+  color: #ffffff;
+  background-color: none;
+}
+.navbar-inverse .navbar-text {
+  color: #ffffff;
+}
+.navbar-inverse .navbar-nav > li > a {
+  color: #ffffff;
+}
+.navbar-inverse .navbar-nav > li > a:hover,
+.navbar-inverse .navbar-nav > li > a:focus {
+  color: #ffffff;
+  background-color: #EF671B;
+}
+.navbar-inverse .navbar-nav > .active > a,
+.navbar-inverse .navbar-nav > .active > a:hover,
+.navbar-inverse .navbar-nav > .active > a:focus {
+  color: #ffffff;
+  background-color: #F28F28;
+}
+.navbar-inverse .navbar-nav > .disabled > a,
+.navbar-inverse .navbar-nav > .disabled > a:hover,
+.navbar-inverse .navbar-nav > .disabled > a:focus {
+  color: #ffffff;
+  background-color: transparent;
+}
+.navbar-inverse .navbar-toggle {
+  border-color: transparent;
+}
+.navbar-inverse .navbar-toggle:hover,
+.navbar-inverse .navbar-toggle:focus {
+  background-color: #F28F28;
+}
+.navbar-inverse .navbar-toggle .icon-bar {
+  background-color: #ffffff;
+}
+.navbar-inverse .navbar-collapse,
+.navbar-inverse .navbar-form {
+  border-color: #062351;
+}
+.navbar-inverse .navbar-nav > .open > a,
+.navbar-inverse .navbar-nav > .open > a:hover,
+.navbar-inverse .navbar-nav > .open > a:focus {
+  background-color: #EF671B;
+  color: #ffffff;
+}
+@media (max-width: 767px) {
+  .navbar-inverse .navbar-nav .open .dropdown-menu > .dropdown-header {
+    border-color: #EF671B;
+  }
+  .navbar-inverse .navbar-nav .open .dropdown-menu .divider {
+    background-color: #EF671B;
+  }
+  .navbar-inverse .navbar-nav .open .dropdown-menu > li > a {
+    color: #ffffff;
+  }
+  .navbar-inverse .navbar-nav .open .dropdown-menu > li > a:hover,
+  .navbar-inverse .navbar-nav .open .dropdown-menu > li > a:focus {
+    color: #ffffff;
+    background-color: #EF671B;
+  }
+  .navbar-inverse .navbar-nav .open .dropdown-menu > .active > a,
+  .navbar-inverse .navbar-nav .open .dropdown-menu > .active > a:hover,
+  .navbar-inverse .navbar-nav .open .dropdown-menu > .active > a:focus {
+    color: #ffffff;
+    background-color: #EF671B;
+  }
+  .navbar-inverse .navbar-nav .open .dropdown-menu > .disabled > a,
+  .navbar-inverse .navbar-nav .open .dropdown-menu > .disabled > a:hover,
+  .navbar-inverse .navbar-nav .open .dropdown-menu > .disabled > a:focus {
+    color: #ffffff;
+    background-color: transparent;
+  }
+}
+.navbar-inverse .navbar-link {
+  color: #ffffff;
+}
+.navbar-inverse .navbar-link:hover {
+  color: #ffffff;
+}
+.navbar-inverse .btn-link {
+  color: #ffffff;
+}
+.navbar-inverse .btn-link:hover,
+.navbar-inverse .btn-link:focus {
+  color: #ffffff;
+}
+.navbar-inverse .btn-link[disabled]:hover,
+fieldset[disabled] .navbar-inverse .btn-link:hover,
+.navbar-inverse .btn-link[disabled]:focus,
+fieldset[disabled] .navbar-inverse .btn-link:focus {
+  color: #ffffff;
+}
+
+```
+
+```{r}
+
+data_pull <- pins::pin_get('submission_df')
+```
+
+# Attendance Graphs
+
+Column 
+-----------------------------------------------------------------------
+
+### Country Attendance
+
+```{r}
+
+ggplot(data = data_pull, aes(x = forcats::fct_infreq(submission_country), fill = T)) + 
+  geom_bar() +
+  geom_text(stat='count', aes(label=..count..), vjust=-.5) +
+  theme_bw() +
+  theme(legend.position = 'none') +
+  ylab('') + 
+  xlab('')
+  
+  
+
+```
+
+Column 
+-----------------------------------------------------------------------
+
+### State Attendance
+
+```{r}
+
+# spdf <- geojson_read("us_states_hexgrid.geojson",  what = "sp")
+# 
+# 
+# spdf@data = spdf@data %>% mutate(google_name = gsub(" \\(United States\\)", "", google_name))
+# spdf_fortified <- tidy(spdf, region = "google_name")
+# 
+# # Calculate the centroid of each hexagon to add the label:
+# library(rgeos)
+# centers <- cbind.data.frame(data.frame(gCentroid(spdf, byid=TRUE), id=spdf@data$iso3166_2))
+#  
+#write_rds(spdf_fortified, 'spdf_fortified.Rds')
+# write_rds(centers, 'centers.Rds')
+
+centers <- readRDS('centers.Rds')
+spdf_fortified <- readRDS('spdf_fortified.Rds') 
+ 
+
+subb_summary <- data_pull %>%
+  group_by(submission_state) %>%
+  summarise(`# of Submissions` = n()) %>%
+  ungroup()
+
+spdf_fortified <- spdf_fortified %>%
+  mutate(submission_state = state.abb[match(id,state.name)]) %>%
+  left_join(subb_summary)
+
+# Now I can plot this shape easily as described before:
+ggplot() +
+  geom_polygon(data = spdf_fortified, aes( x = long, y = lat, group = group, fill = `# of Submissions`)) +
+  geom_text(data=centers, aes(x=x, y=y, label=id)) +
+  theme_void() +
+  coord_map() 
+
+
+```
+
+# Raw Responses
+
+```{r}
+
+data_pull %>% 
+  DT::datatable()
+
+
+```
